@@ -1,0 +1,324 @@
+// Batman Beyond: Return of the Joker
+// #ID = 18515
+
+// id for the chapter number
+Chapter = byte(0x06cf26)
+
+// 0 = easy, 1 = normal, 2 = hard
+Difficulty = byte(0x06cf38)
+
+// Area ID 1/2
+Area1 = byte(0x06ce0c)
+
+// Area ID 2/2
+Area2 = byte(0x06ce08)
+
+// Life counter
+Lives = byte(0x078364)
+
+// 0x00 = timer not on screen, 0x01 = it is on screen, 0x02 paused during time trial
+Timer = byte(0x06cd68)
+
+// Time Trial mode, 1==A, 2==B,... 5==E
+Mode = byte(0x06cf22)
+
+// In game status
+function InGame() => byte(0x06e550) == 0x10
+
+// Idle status, which includes pase screen, dialogue, and loading
+function Idle() => byte(0x06e550) == 0x18
+
+// True if loading
+function Loading() => byte(0x06cd58) == 0x00
+
+// Demo flag, 0x02 = demo is active, 0x00 = it is not
+function Demo() => byte(0x088767) == 0x02
+
+// End Screen
+function EndScreen() => byte(0x06e62b) == 0x01
+
+// Check if on the title screen
+function TitleScreen() => byte(0x099280) == 0x80
+
+// 0 == Standard, 1 == Offensive, 0x02 == Defensive, 0x03 == Nimble
+Suit = byte(0x078365)
+
+// 0 == No weapon, 1 == Dark Knight Discus, 2 == Dark Knight Staff, 3 == Nun Chaku
+Weapon = byte(0x078366)
+
+// Number of discus held
+Discs = byte(0x078376)
+
+// 0x00 = not paused, 0x80 == paused
+Pause = byte(0x1ffec3)
+
+// X-Coordinate of player
+XCoordinate = word(0x073d8c)
+
+// Checks if a chapter was cleared
+function ChapterClear(chapter) 
+{
+    if (chapter == 3)
+        return prev(Chapter) == chapter && Chapter == (chapter + 1) && Idle() 
+    else return prev(Chapter) == chapter && Chapter == (chapter + 1) && InGame()
+} 
+
+// Adds trigger flags for challenges
+function ChapterClearChallenge(chapter) 
+{
+    if (chapter == 3)
+        return prev(Chapter) == chapter && trigger_when(Chapter == (chapter + 1) && Idle())
+    else return prev(Chapter) == chapter && trigger_when(Chapter == (chapter + 1) && InGame())
+}
+
+// Check if a continue was used
+function Continue() => prev(Lives) == 0x00 && Lives == 0x02
+
+// Checks if a retry is used
+function Retry() 
+{ 
+    return prev(byte(0x06cde8)) == 0x02 && 
+           byte(0x06cde8) == 0x00 && 
+           Pause == 0x80
+}
+
+// Creates progression achievements
+function ChapterAchievement(name, chapter) 
+{
+    achievement(
+        name,
+        "Finish Chapter " + chapter,
+        5,
+        !Demo() && ChapterClear(chapter)
+    )
+}
+
+// Creates deathless achievements
+function DeathlessChapter(chapter)
+{
+    if(chapter == 5)
+        return !Demo() && Chapter5Challenge() && Difficulty !=0 &&
+        never(prev(Lives) > Lives || TitleScreen())    
+    else return !Demo() && ChapterClearChallenge(chapter) && Difficulty !=0 &&
+        never(prev(Lives) > Lives || TitleScreen()) 
+}
+
+// Checks if a chapter is cleared with a specific suit
+function OneSuitChapter(chapter, suit)
+{
+    if(chapter == 5)
+        return !Demo() && Chapter5Challenge() && Difficulty !=0 &&
+        never(Suit != prev(Suit) || TitleScreen())
+    else return !Demo() && ChapterClearChallenge(chapter) && Difficulty !=0 &&
+        never(Suit != suit || TitleScreen()) 
+}
+
+// Checks if a chapter is beaten only using one weapon
+function OneWeaponChapter(chapter, weapon)
+{
+    return !Demo() && ChapterClearChallenge(chapter) && Difficulty !=0 &&
+           never(Weapon != weapon || TitleScreen()) 
+}
+
+// Sets a flag for when chapter 1 is entered through the title screen
+function Chapter1Start()
+{
+    return once(prev(byte(0x099280)) == 0x80 && Idle()) ||
+    once(prev(byte(0x06e550)) == 0x00 && Idle()) ||
+    once((Continue())) ||
+    once((Retry()))
+}
+
+// Starts a challenge
+function ChallengeStart(chapter)
+{
+    return once(prev(Chapter) == chapter - 1 && Chapter == chapter) ||
+    once(Continue()) ||
+    once(Retry())
+}
+
+// Function used to check if the Chapter 1 shortuct was entered
+function Shortcut()
+{
+    return !Demo() &&
+            Idle() &&
+            Chapter == 0x01 &&
+            prev(Area1) == 0x03 &&
+            Area1 == 0x17
+}
+
+// Function to check if the break-in room was entered and in sight
+function Secret() 
+{
+    return !Demo() &&
+            once(Idle() && 
+                 Chapter == 0x02 &&
+                 prev(Area1) == 0x06 && 
+                 Area1 == 0x13) &&
+                 Area2 == 0x0f &&
+            never(Area1 != 0x13 || TitleScreen()) &&
+            XCoordinate < 0x5000
+}
+
+// Checks if the inputted number of discus has been reached
+function DiscsHeld(discs) 
+{
+    return (prev(Discs) == discs - 3 && Discs == discs) ||
+           (prev(Discs) == discs - 2 && Discs == discs + 1) ||
+           (prev(Discs) == discs - 1 && Discs == discs + 2)        
+}
+
+// Check you are entering each room
+function HiddenRoom(level)
+{
+    if(level == 2)   
+        return measured(tally(3, 
+                    once(prev(Area1) == 0x13 && Area1 == 0x18),
+                    once(prev(Area1) == 0x0d && Area1 == 0x18),
+                    once(prev(Area1) == 0x0e && Area1 == 0x11))) &&
+                    InGame() &&
+                    !Demo() &&
+                    never(TitleScreen() || Retry() || Chapter != level || Continue())
+    if(level == 3)
+        return measured(tally(2,
+                    once(prev(Area1) == 0x0e && Area1 == 0x12),
+                    once(prev(Area1) == 0x0a && Area1 == 0x0e))) &&
+                    InGame() &&
+                    !Demo() &&
+                    never(TitleScreen() || Retry() || Chapter != level || Continue())
+                    
+    if(level == 5)
+        return measured(tally(3,
+                    once(prev(Area1) == 0x14 && Area1 == 0x18), 
+                    once(prev(Area1) == 0x0c && Area1 == 0x0f && Area2 == 0x0d), 
+                    once(prev(Area1) == 0x07 && Area1 == 0x0c))) &&
+                    InGame() &&
+                    !Demo() &&
+                    never(TitleScreen() || Retry() || Chapter != level || Continue())
+}
+
+// Check to see if chapter 5 was beaten
+function Chapter5Clear() 
+{
+    return EndScreen() && Idle() && Chapter == 0x05
+}
+
+// Same as above function, just for challenge achievements with a trigger
+function Chapter5Challenge() 
+{
+    return Chapter == 0x05 && trigger_when(EndScreen() && Idle())
+}
+
+// Time Trial Start
+function TimeTrialStart()
+{
+    return once(prev(Timer) == 0x00 && Timer == 0x01)
+}
+
+// Submits the time trial
+function TimeTrialSubmit()
+{
+    return prev(Timer) == 0x01 && Timer== 0x00
+}
+
+// Cancels time trial
+function TimeTrialCancel(trial)
+{
+    return never(prev(Timer) == 0x02 && Timer == 0x00 || 
+                 prev(Timer) == 0x03 && Timer == 0x00 || 
+                 Mode != trial || 
+                 Loading())
+}
+
+// Returns number of frames for time trial, centi is how many additional frames it takes 
+// to reach the given number after the seconds is met
+function Time(min, sec, centi)
+{
+    seconds = sec + (min * 60) 
+    frames = seconds * 60 + centi
+    return never(repeated(frames, Timer == 0x01))
+}
+
+// Progression Achievements
+ChapterAchievement("Gotham Air & Space", 1)
+ChapterAchievement("Wayne Enterprise Building", 2)
+ChapterAchievement("Arkham Asylum", 3)
+ChapterAchievement("Tim Drake's Laboratory", 4)
+
+// Beat the game on different difficulties
+achievement("Jolly Jack's Candy Factory", "Beat the game on easy difficulty or higher", 5, 
+                Chapter5Clear())
+achievement("Joker? Never Heard of Her", "Beat the game on normal difficulty or higher", 10, 
+                Chapter5Clear() && Difficulty != 0)
+achievement("The Batman Beyond Who Laughs", "Beat the game on hard difficulty", 25, 
+                Chapter5Clear() && Difficulty == 2)
+                
+// Deathless Achievements
+achievement("Bonking on Heaven's Door", "Finish Chapter 1 without dying throughout the stage on normal+", 10,
+                Chapter1Start() && DeathlessChapter(1))
+achievement("Wooftastic", "Finish Chapter 2 without dying throughout the stage on normal+", 10,
+                ChallengeStart(2) && DeathlessChapter(2))
+achievement("Ghoulish", "Finish Chapter 3 without dying throughout the stage on normal+", 25,
+                ChallengeStart(3) && DeathlessChapter(3))
+achievement("Anti-Bat Computer", "Finish Chapter 4 without dying throughout the stage on normal+", 5,
+                ChallengeStart(4) && DeathlessChapter(4))  
+achievement("Jokes On You", "Finish Chapter 5 without dying throughout the stage on normal+", 25,
+                ChallengeStart(5) && DeathlessChapter(5)) 
+
+// No continues
+// Checks when you start a game from title screen
+// resets if a continue is used, or if back at title screen
+// achievement("Unbeatable Bat", "Beat the game without using a continue on normal+", 50,
+//                __ornext(once(prev(byte(0x099280)) == 0x80 && Idle()) ||
+//                  once(prev(byte(0x06e550)) == 0x00 && Idle()))
+//                Chapter5Challenge() && !Demo() && Difficulty != 0x00 &&
+//                never(Continue()) && 
+//                never(TitleScreen()))
+                
+// Solo Suit Challenges
+achievement("Offensive Bat", "Clear Chapter 1 only using the Offensive Suit on normal+ (Retry with suit on to start)", 5,
+            Chapter1Start() && OneSuitChapter(1, 1))
+achievement("Defensive Bat", "Clear Chapter 2 only using the Defensive Suit on normal+ (Retry with suit on to start)", 5,
+            ChallengeStart(2) && OneSuitChapter(2, 2))
+achievement("Nimble Bat", "Clear Chapter 3 only using the Nimble Suit on normal+ (Retry with suit on to start)", 10,
+            ChallengeStart(3) && OneSuitChapter(3, 3))
+achievement("Standard Bat", "Clear Chapter 4 only using the Standard Suit on normal+ (Retry with suit on to start)", 5,
+            ChallengeStart(4) && OneSuitChapter(4, 0))
+            
+// Solo Weapon Challenges
+achievement("Naked Bat", "Clear Chapter 1 only using the Standard Bat Suit, and Standard Weapon on normal+ (Retry with weapon on to start)", 5,
+            Chapter1Start() && OneWeaponChapter(1, 0) && never(Suit != 0x00))
+achievement("Nightwing", "Clear Chapter 2 only using the Dark Knight Staff on normal+ (Retry with weapon on to start)", 5,
+            ChallengeStart(2) && OneWeaponChapter(2, 2))
+achievement("Damian Wayne", "Clear Chapter 3 only using the Magnetic Nun Chaku on normal+ (Retry with weapon on to start)", 5,
+            ChallengeStart(3) && OneWeaponChapter(3, 3))
+            
+// Hidden items/areas
+achievement("Shortcut", "Take the shortcut in Chapter 1 [m]", 3,
+            Shortcut())
+achievement("What's Going On?", "Discover the break-in in Chapter 2 [m]", 1,
+            Secret())
+achievement("Glide Me to the Moon", "Find the hidden 1-up on stage 4 [m]", 3,
+            Chapter == 0x04 && InGame() && Lives == (prev(Lives) + 1))
+achievement("Discus Champion", "Hold 18 or more Dark Knight Discus", 3,
+            DiscsHeld(18))
+            
+// Hidden Room Achievements
+achievement("Crate Hunter I", "Find all the 3-crate rooms in Chapter 2 [m]", 10,
+            HiddenRoom(2))
+achievement("Crate Hunter II", "Find all the 3-crate rooms in Chapter 3 [m]", 5,
+            HiddenRoom(3))
+achievement("Crate Hunter III", "Find all the 3-crate rooms in Chapter 5 [m]", 10,
+            HiddenRoom(5))
+            
+// Time Trial Best Times
+achievement("Arkham", "Beat the best time on Time Trial A", 5,
+            TimeTrialStart() && trigger_when(TimeTrialSubmit()) && TimeTrialCancel(1) && Time(0, 41, 11))
+achievement("Bane", "Beat the best time on Time Trial B", 5,
+            TimeTrialStart() && trigger_when(TimeTrialSubmit()) && TimeTrialCancel(2) && Time(0, 38, 19))
+achievement("Catwomen", "Beat the best time on Time Trial C", 5,
+            TimeTrialStart() && trigger_when(TimeTrialSubmit()) && TimeTrialCancel(3) && Time(0, 54, 30))
+achievement("Deathstroke", "Beat the best time on Time Trial D", 5,
+            TimeTrialStart() && trigger_when(TimeTrialSubmit()) && TimeTrialCancel(4) && Time(0, 37, 36))
+achievement("Edward Nigma", "Beat the best time on Time Trial E", 5,
+            TimeTrialStart() && trigger_when(TimeTrialSubmit()) && TimeTrialCancel(5) && Time(1, 3, 19))
