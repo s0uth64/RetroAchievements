@@ -1,0 +1,161 @@
+// iCarly
+// #ID = 18396
+
+// id for chapters completed
+ChapterClear = 0x08c598
+
+// modes, 0x00 = story, 0x01 = quick play, 0x02 = breaking records
+Mode = byte(0x29cade)
+
+// iBreak Records Mode, 0x01 = 1 star, 0x02 = 2, 0x03 = 3
+RecordsMode = byte(0x8c690)
+
+// iBreak Records stars
+RecordsStars = byte(0x8c6d8)
+
+// Chapter specific high scores
+ChapterOneStars = byte(0x08c608)
+ChapterTwoStars = byte(0x08c609)
+ChapterThreeStars = byte(0x08c60a)
+ChapterFourStars = byte(0x08c60b)
+ChapterFiveStars = byte(0x08c60c)
+
+// returns the high score in stars for specific chapter
+function ChapterScores(chapter)
+{
+    if (chapter == 1)
+        return ChapterOneStars
+    if (chapter == 2)
+        return ChapterTwoStars
+    if (chapter == 3)
+        return ChapterThreeStars
+    if (chapter == 4)
+        return ChapterFourStars
+    if (chapter == 5)
+        return ChapterFiveStars
+}
+
+// returns if the specific chapter was cleared
+function ChapterCleared(chapter)
+{
+    return (prev(bitcount(ChapterClear)) == chapter) && 
+            (bitcount(ChapterClear) == chapter + 1) &&
+            Mode == 0x00
+}
+
+// returns if the specific chapter got all stars
+function AllStarsChapter(chapter)
+{
+    return (prev(ChapterScores(chapter)) >= 0xf) &&
+            (prev(ChapterScores(chapter)) <= 0x11) &&
+            (ChapterScores(chapter) == 0x12) &&
+            Mode == 0x00
+}
+
+// returns if every star has been aquired in story mode
+function AllStars()
+{
+    return ((prev(ChapterOneStars) + prev(ChapterTwoStars) +
+            prev(ChapterThreeStars) + prev(ChapterFourStars) +
+            prev(ChapterFiveStars)) >= 87) &&
+            ((prev(ChapterOneStars) + prev(ChapterTwoStars) +
+            prev(ChapterThreeStars) + prev(ChapterFourStars) +
+            prev(ChapterFiveStars)) <= 89) &&
+            measured((ChapterOneStars + ChapterTwoStars +
+            ChapterThreeStars + ChapterFourStars +
+            ChapterFiveStars) == 90) && 
+            Mode == 0x00
+}
+
+// returns records for iBreakRecords
+function RecordsHighScore(level)
+{
+    if (level == 1)
+        return (prev(RecordsStars) <= 74) &&
+                (prev(RecordsStars) >= 72) &&
+                RecordsStars >= 75 &&
+                RecordsMode == 1
+    if (level == 2)
+        return (prev(RecordsStars) <= 49) &&
+                (prev(RecordsStars) >= 47) &&
+                RecordsStars >= 50 &&
+                RecordsMode == 2
+    if (level == 3)
+        return (prev(RecordsStars) <= 24) &&
+                (prev(RecordsStars) >= 22) &&
+                RecordsStars >= 25 &&
+                RecordsMode == 3
+}
+
+// returns if the total amount of items that were purchased in the shop, 48 total
+function ShoppingTotal(total)
+{
+    totalItems = bitcount(0x8c5e4) + 
+                    bit(0, 0x8c5e5) + bit(2, 0x8c5e5) +
+                    bit(1, 0x8c5e6) + bit(2, 0x8c5e6) +
+                    bit(1, 0x8c5e7) +
+                    bit(1, 0x8c5e8) + bit(2, 0x8c5e8) +
+                    bit(1, 0x8c5e9) + bit(2, 0x8c5e9) +
+                    bit(1, 0x8c5ea) +
+                    bit(1, 0x8c5eb) +
+                    bit(1, 0x8c5ec) +
+                    bit(1, 0x8c5ed) +
+                    bit(1, 0x8c5ee) +
+                    bit(1, 0x8c5ef) +
+                    bit(1, 0x8c5f0) + bit(3, 0x8c5f0) +
+                    bit(1, 0x8c5f1) + bit(3, 0x8c5f1) +
+                    bit(1, 0x8c5f2) + bit(3, 0x8c5f2) +
+                    bit(1, 0x8c5f3) +
+                    bit(1, 0x8c5f4) +
+                    bit(1, 0x8c5f5) +
+                    bit(1, 0x8c5f6) +
+                    bit(1, 0x8c5f7) + bit(3, 0x8c5f7) +
+                    bit(1, 0x8c5f8) + bit(3, 0x8c5f8) +
+                    bit(1, 0x8c5f9) + bit(3, 0x8c5f9) +
+                    bit(1, 0x8c5fa) +
+                    bit(1, 0x8c5fb) +
+                    bit(1, 0x8c5fc) +
+                    bit(1, 0x8c5fd) +
+                    bit(1, 0x8c5fe) +
+                    bit(0, 0x8c5ff) +
+                    bit(0, 0x8c600) +
+                    bit(0, 0x8c601) +
+                    bit(1, 0x8c602)
+                    
+    return ((total - 1) == prev(totalItems)) &&
+            measured(total == totalItems)
+}
+
+// achievements
+achievement("iLove Sniffmas", "Clear the first Webisode", 3,
+            ChapterCleared(1))
+achievement("iRandomly Dance", "Clear the second Webisode", 3,
+            ChapterCleared(2))
+achievement("iChop the Sausage", "Clear the third Webisode", 5,
+            ChapterCleared(3))
+achievement("iHate Robots", "Clear the fourth Webisode", 5,
+            ChapterCleared(4))
+achievement("iPop Pimples", "Clear the fifth Webisode", 5,
+            ChapterCleared(5))
+achievement("iStar in a Web Show", "Clear Webisode 1 with 18 stars", 5,
+            AllStarsChapter(1))
+achievement("iSet Everything on Fire", "Clear Webisode 2 with 18 stars", 5,
+            AllStarsChapter(2))
+achievement("iDon't Want to Go to Yakima", "Clear Webisode 3 with 18 stars", 10,
+            AllStarsChapter(3))      
+achievement("iHate Nevel Papperman", "Clear Webisode 4 with 18 stars", 10,
+            AllStarsChapter(4))
+achievement("iRue the Day", "Clear Webisode 5 with 18 stars", 10,
+            AllStarsChapter(5))
+achievement("iAm A Super Star", "Get all 90 stars in iWebisodes", 25,
+            AllStars())
+achievement("iRock", "Earn 75 stars or more in iBreakRecords 1-Star Mode", 5,
+            RecordsHighScore(1))
+achievement("iRock More", "Earn 50 stars or more in iBreakRecords 2-Star Mode", 5,
+            RecordsHighScore(2))
+achievement("iRock the Most", "Earn 25 stars or more in iBreakRecords 3-Star Mode", 10,
+            RecordsHighScore(3))
+achievement("iLike Shopping", "Buy half of the items in the shop", 5,
+            ShoppingTotal(24))
+achievement("iLove Shopping", "Buy all of the items in the shop", 10,
+            ShoppingTotal(48))
